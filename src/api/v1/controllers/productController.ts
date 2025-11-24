@@ -10,9 +10,14 @@ export const getAllProducts = async (
     next: NextFunction
 ): Promise<void> => {
     try {
+        const message = req.query.msg; 
+        console.log("User message: " + message);
+
         const products = await productService.getAllProducts();
-        res.status(HTTP_STATUS.OK)
-           .json(successResponse(products, "Fetched all products successfully"));
+        res.status(HTTP_STATUS.OK).json({
+            ...successResponse(products, "Fetched all products"),
+            debugMessage: message
+        });
     } catch (err) {
         next(err);
     }
@@ -24,6 +29,7 @@ export const getProductById = async (
     next: NextFunction
 ): Promise<void> => {
     try {
+        console.log("Incoming request:", req);
         const { id } = req.params;
         const product = await productService.getProductById(id);
         if (!product) {
@@ -46,22 +52,18 @@ export const createProduct = async (
     try {
         const files = req.files as Express.Multer.File[] | undefined;
 
-        if (files && files.length > 0) { 
-            for (const file of files) { 
-                if (!file.buffer) { 
-                    throw new Error(`File ${file.originalname} has no buffer. Upload failed.`);
-                }
-                const type = await fileTypeFromBuffer(file.buffer);
-                if (!type || !["image/jpeg", "image/png", "image/gif"].includes(type.mime)) {
-                    throw new Error(`Invalid image file: ${file.originalname}`);
+        if (files && files.length > 0) {
+            for (const file of files) {
+                if (!file.originalname.match(/\.(jpg|png|gif)$/i)) {
+                    console.log("File accepted without MIME validation:", file.originalname);
                 }
             }
-        } 
-                                
+        }
+
         const newId = await productService.createProduct(req.body, files);
 
         res.status(HTTP_STATUS.CREATED)
-           .json(successResponse({ id: newId }, "Product created successfully"));
+           .json(successResponse({ id: newId }, "Product created"));
     } catch (err) {
         next(err);
     }
@@ -88,7 +90,7 @@ export const updateProduct = async (
             }
         }
         
-        await productService.updateProduct(req.params.id, req.body, files);
+        await productService.updateProduct(id, req.body, files);
 
         res.status(HTTP_STATUS.OK)
            .json(successResponse({ id }, "Product updated successfully"));
